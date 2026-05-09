@@ -173,8 +173,10 @@ section.main > div { padding-top: 1rem; max-width: 1540px; }
   border: 1.5px dashed #CBD5E1 !important;
   border-radius: 12px !important;
 }
-[data-testid="stFileUploader"] *,
-[data-testid="stFileUploaderDropzone"] * { color: #0B1220 !important; -webkit-text-fill-color: #0B1220 !important; }
+/* Target text and buttons specifically — NOT svg/icons with * wildcard */
+[data-testid="stFileUploader"] span,
+[data-testid="stFileUploader"] p,
+[data-testid="stFileUploader"] small { color: #0B1220 !important; -webkit-text-fill-color: #0B1220 !important; }
 [data-testid="stFileUploader"] button,
 [data-testid="stFileUploaderDropzone"] button {
   background: #FFFFFF !important;
@@ -182,13 +184,19 @@ section.main > div { padding-top: 1rem; max-width: 1540px; }
   -webkit-text-fill-color: #0B1220 !important;
   border: 1px solid #CBD5E1 !important;
 }
-/* The actual dark panel Streamlit renders for the drop zone */
 [data-testid="stFileUploader"] [class*="uploadedFile"],
 [data-testid="stFileUploader"] [class*="FileUploader"],
 [data-testid="stFileUploader"] > div > div {
   background: #F8FAFC !important;
   color: #0B1220 !important;
 }
+
+/* ── Fix help icon (?) — wildcard was making SVG invisible ── */
+button[data-testid="stBaseButton-headerNoPadding"],
+[data-testid="stTooltipIcon"] svg,
+[data-testid="stTooltipHoverTarget"] svg { color: #64748B !important; fill: #64748B !important; opacity: 1 !important; }
+/* Restore any accidentally hidden SVG icons in main area */
+.main svg { color: unset; fill: unset; }
 
 /* ── Light-mode: ALL buttons (stButton + form submit) ── */
 .stButton > button, [data-testid="stFormSubmitButton"] > button {
@@ -723,7 +731,22 @@ with left:
             except Exception:
                 platforms = (c.get("ats") or {}).get("type", "custom")
             rows.append({"Company": c.get("name"), "Connector(s)": platforms, "URL": c.get("careers_url")})
-        st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True, theme="streamlit")
+        # Use HTML table instead of st.dataframe to avoid canvas dark-mode rendering
+        tbl_rows = "".join(
+            f"<tr><td style='padding:8px 12px;border-bottom:1px solid #E2E8F0;color:#0B1220;font-size:13px'>{r['Company']}</td>"
+            f"<td style='padding:8px 12px;border-bottom:1px solid #E2E8F0;color:#0B1220;font-size:13px'>{r['Connector(s)']}</td>"
+            f"<td style='padding:8px 12px;border-bottom:1px solid #E2E8F0;color:#475569;font-size:12px;word-break:break-all'>{r['URL']}</td></tr>"
+            for r in rows
+        )
+        st.markdown(
+            f"<table style='width:100%;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #E2E8F0'>"
+            f"<thead><tr>"
+            f"<th style='padding:10px 12px;background:#F1F5F9;color:#334155;font-size:12px;text-align:left;font-weight:700'>Company</th>"
+            f"<th style='padding:10px 12px;background:#F1F5F9;color:#334155;font-size:12px;text-align:left;font-weight:700'>Connector(s)</th>"
+            f"<th style='padding:10px 12px;background:#F1F5F9;color:#334155;font-size:12px;text-align:left;font-weight:700'>URL</th>"
+            f"</tr></thead><tbody>{tbl_rows}</tbody></table>",
+            unsafe_allow_html=True
+        )
     cc1, cc2 = st.columns(2)
     with cc1:
         if st.button("Clear manually added employer sources", use_container_width=True):
@@ -825,14 +848,14 @@ with st.expander("Source health, analytics, and diagnostics", expanded=False):
             st.info("Run a match analysis to populate connector analytics.")
         st.markdown("### Employer fetch status")
         if st.session_state.source_stats:
-            st.dataframe(pd.DataFrame(st.session_state.source_stats), use_container_width=True, hide_index=True, theme="streamlit")
+            st.dataframe(pd.DataFrame(st.session_state.source_stats), use_container_width=True, hide_index=True)
         else:
             st.info("No source diagnostics are available yet.")
     with c2:
         st.markdown("### Parsed candidate profile sources")
         sources = [s.__dict__ for s in st.session_state.profile.sources]
         if sources:
-            st.dataframe(pd.DataFrame(sources), use_container_width=True, hide_index=True, theme="streamlit")
+            st.dataframe(pd.DataFrame(sources), use_container_width=True, hide_index=True)
         else:
             st.info("No candidate profile sources have been analyzed yet.")
         st.markdown("### Execution log")
@@ -843,7 +866,7 @@ with st.expander("Source health, analytics, and diagnostics", expanded=False):
             st.info("No execution logs are available yet.")
     st.markdown("### Fetched role table")
     if st.session_state.jobs:
-        st.dataframe(job_dataframe(st.session_state.jobs), use_container_width=True, hide_index=True, theme="streamlit")
+        st.dataframe(job_dataframe(st.session_state.jobs), use_container_width=True, hide_index=True)
     else:
         st.info("No roles have been fetched yet.")
     with st.expander("Candidate profile text preview"):
