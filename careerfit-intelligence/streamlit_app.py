@@ -62,6 +62,14 @@ html, body, [class*="css"], .stApp { font-family: Inter, ui-sans-serif, system-u
 section.main > div { padding-top: 1rem; max-width: 1540px; }
 #MainMenu, footer { visibility: hidden; }
 .block-container { padding-left: 2.1rem; padding-right: 2.1rem; }
+.stButton > button {
+    background-color: #2563EB;
+    color: white !important;
+    border-radius: 10px;
+    border: none;
+    font-weight: 700;
+}
+.stButton > button:hover { opacity: 0.88; }
 [data-testid="stSidebar"] { background: linear-gradient(180deg, #07111F 0%, #0F172A 52%, #111827 100%); border-right: 1px solid rgba(255,255,255,.08); }
 [data-testid="stSidebar"] * { color: #E5E7EB; }
 [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p { color: #A7B0C0; }
