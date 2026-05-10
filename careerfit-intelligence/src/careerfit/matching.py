@@ -264,6 +264,45 @@ def opportunity_adjustment(job_text: str) -> tuple[float, list[str]]:
     return boost - penalty, sorted(set(early_hits + senior_hits))[:6]
 
 
+# Years-of-experience patterns
+# Catches: "5+ years", "5 years of experience", "minimum 3 years", "at least 4 years", "5-7 years"
+_YEARS_PATTERNS = [
+    re.compile(r"(\d{1,2})\s*\+?\s*(?:to|-|–)\s*\d{1,2}\s*(?:years?|yrs?)", re.IGNORECASE),  # "3-5 years"
+    re.compile(r"(?:minimum|at least|min\.?)\s+(?:of\s+)?(\d{1,2})\s*\+?\s*(?:years?|yrs?)", re.IGNORECASE),
+    re.compile(r"(\d{1,2})\s*\+\s*(?:years?|yrs?)\s+(?:of\s+)?(?:experience|exp|professional)", re.IGNORECASE),
+    re.compile(r"(\d{1,2})\s*(?:years?|yrs?)\s+(?:of\s+)?(?:experience|exp|professional|relevant|industry)", re.IGNORECASE),
+]
+
+def extract_years_required(job_text: str) -> int | None:
+    """Return the MINIMUM years of experience required, or None if not found."""
+    if not job_text:
+        return None
+    found = []
+    for pattern in _YEARS_PATTERNS:
+        for match in pattern.finditer(job_text):
+            try:
+                n = int(match.group(1))
+                if 0 <= n <= 30:
+                    found.append(n)
+            except (ValueError, IndexError):
+                continue
+    if not found:
+        return None
+    return min(found)
+
+
+def years_experience_penalty(job_text: str, max_years: int) -> tuple[float, int | None]:
+    """Penalize jobs requiring more than max_years of experience.
+    Returns (penalty, detected_years). The penalty grows with the gap."""
+    detected = extract_years_required(job_text)
+    if detected is None or detected <= max_years:
+        return 0.0, detected
+    gap = detected - max_years
+    # 0.08 penalty per year over the limit, capped at 0.30
+    penalty = min(0.30, 0.08 * gap)
+    return penalty, detected
+
+
 def profile_density_bonus(profile: RuntimeProfile) -> float:
     if not profile.combined_text:
         return 0.0
@@ -317,6 +356,7 @@ def score_job(
     profile: RuntimeProfile,
     threshold: float = 0.85,
     intent_terms: list[str] | None = None,
+    max_years_experience: int = 10,
 ) -> JobMatch:
     title = job.title or "Untitled role"
     text = _job_text(job)
@@ -331,6 +371,8 @@ def score_job(
 
     penalty, negative_hits = negative_penalty(job_text_l)
     adjustment, seniority_hits = opportunity_adjustment(job_text_l)
+    years_penalty, detected_years = years_experience_penalty(job_text_l, max_years_experience)
+    penalty += years_penalty
 
     if not profile_ready:
         base, reason, evidence, feature_scores = _fallback_no_profile_score(
@@ -497,6 +539,7 @@ def rank_jobs(
     us_only: bool = False,
     include_unknown_locations: bool = False,
     intent_terms: list[str] | None = None,
+    max_years_experience: int = 10,
 ) -> list[JobMatch]:
     seen: set[str] = set()
     matches: list[JobMatch] = []
@@ -507,6 +550,6 @@ def rank_jobs(
         if key in seen:
             continue
         seen.add(key)
-        matches.append(score_job(job, profile, threshold, intent_terms=intent_terms))
+        matches.append(score_job(job, profile, threshold, intent_terms=intent_terms, max_years_experience=max_years_experience))
     matches.sort(key=lambda m: m.score, reverse=True)
     return matches
