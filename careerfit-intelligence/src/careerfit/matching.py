@@ -410,12 +410,16 @@ def score_job(
         else:
             # Listing-only Workday/Ashby/Lever boards may not include the full JD in fast mode.
             # A strong title + role-target overlap is therefore enough to score high, while
-            # unrelated titles remain low. Tuned to spread scores across 0.6-0.95 instead of
-            # clamping to 0.99 — gives meaningful differentiation between top matches.
-            synergy = 0.10 if title_score >= 0.80 and role_phrase_score >= 0.40 else 0.0
+            # unrelated titles remain low. Tuned so:
+            #   perfect match → 0.92-0.97 (clamped at 0.97)
+            #   great match   → 0.82-0.92
+            #   decent match  → 0.70-0.82
+            #   borderline    → 0.55-0.70
+            #   weak          → 0.30-0.55
+            synergy = 0.14 if title_score >= 0.80 and role_phrase_score >= 0.40 else 0.0
             base = (
-                0.04
-                + 0.40 * title_score
+                0.10
+                + 0.44 * title_score
                 + 0.10 * skill_score
                 + 0.12 * keyword_score
                 + 0.08 * semantic_score
